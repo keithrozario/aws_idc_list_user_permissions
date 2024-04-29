@@ -28,6 +28,8 @@ The csv file contains only the 5 columns:
 
 ## Notes
 
-If an account or permission set exists with no users attached to it, this report will not have a item on the list for it. Only permissions sets with account assignments associated with actual users will appear on the list.
+If an account or permission set exists with no users attached to it, this report will **not** have a item on the list for it. Only permissions sets with account assignments associated with actual users will appear on the list.
 
-Similarly, groups with no users as members will also not appear on the list.
+Groups with no users as members will **not** appear on the list.
+
+The managed policies and inline policies for each permission set is available in the jsonl file on a per line basis.
