@@ -1,4 +1,5 @@
 import boto3
+import botocore
 
 
 def list_instances(client: boto3.client) -> list:
@@ -93,12 +94,32 @@ def list_user_assignments(
 
     return result
 
+def list_managed_policy_permission_set(
+    client: boto3.client, permission_set_arn: str, instance_arn: str
+) -> list:
+    """
+    List managed policies of permission_set
+    """
+
+    paginator = client.get_paginator('list_managed_policies_in_permission_set')
+    managed_policies = paginator.paginate(
+        InstanceArn=instance_arn, PermissionSetArn=permission_set_arn
+    ).build_full_result()["AttachedManagedPolicies"]
+
+    return managed_policies
+
 
 def describe_permissions_sets(
     client: boto3.client, permission_sets: list, instance_arn: str
 ) -> dict:
     """
     Returns lookup dictionary of permission sets
+    Lookup dictionary has one key for each permission set, the key is the arn of the set.
+    
+    Each element of the lookup dictionary contains:
+        Permission Set Description (e.g. Arn, CreatedAt) at the root 
+        Permission Set Inline Policy, at 'inline_policy'
+        Permission Set Permission Boundary at 'permission_boundary'
     """
 
     print(
@@ -111,5 +132,25 @@ def describe_permissions_sets(
             InstanceArn=instance_arn, PermissionSetArn=permission_set
         )["PermissionSet"]
         permission_set_lookup[permission_set] = permission_set_description
+        
+        permission_set_inline_policy = client.get_inline_policy_for_permission_set(
+            InstanceArn=instance_arn, PermissionSetArn=permission_set
+        )["InlinePolicy"]
+        permission_set_lookup[permission_set]['inline_policy'] = permission_set_inline_policy
 
+        try:
+            permission_set_permission_boundary = client.get_permissions_boundary_for_permission_set(
+                InstanceArn=instance_arn, PermissionSetArn=permission_set
+            )["PermissionsBoundary"]
+        except client.exceptions.ResourceNotFoundException:
+            # No permission boundary found for this permission set
+            permission_set_permission_boundary = False
+        
+        if not permission_set_permission_boundary:
+            permission_set_lookup[permission_set]['permission_boundary'] = permission_set_permission_boundary
+
+
+        managed_policies = list_managed_policy_permission_set(client, permission_set, instance_arn)
+        permission_set_lookup[permission_set]['managed_policies '] = managed_policies
+        
     return permission_set_lookup
